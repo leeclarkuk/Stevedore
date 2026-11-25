@@ -1,0 +1,10 @@
+/bin/
+/dist/
+/out/
+*.test
+*.out
+coverage.*
+.DS_Store
+.env
+.env.*
+*.kubeconfig
