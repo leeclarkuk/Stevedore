@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/instance: web-redis
+    app.kubernetes.io/managed-by: stevedore
+    app.kubernetes.io/name: cache
+  name: cache
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: web-redis
+      app.kubernetes.io/name: cache
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: web-redis
+        app.kubernetes.io/managed-by: stevedore
+        app.kubernetes.io/name: cache
+    spec:
+      containers:
+      - image: redis:7.4-alpine
+        name: cache
+        resources: {}
+status: {}

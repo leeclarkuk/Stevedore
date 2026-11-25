@@ -1,0 +1,9 @@
+# Minimal two-service app. It grows as convert supports more Compose keys;
+# until then any other key fails conversion by design.
+name: web-redis
+
+services:
+  web:
+    image: nginx:1.27-alpine
+  cache:
+    image: redis:7.4-alpine
