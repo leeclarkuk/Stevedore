@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/instance: web-redis
+    app.kubernetes.io/managed-by: stevedore
+    app.kubernetes.io/name: web
+  name: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: web-redis
+      app.kubernetes.io/name: web
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: web-redis
+        app.kubernetes.io/managed-by: stevedore
+        app.kubernetes.io/name: web
+    spec:
+      containers:
+      - image: nginx:1.27-alpine
+        name: web
+        resources: {}
+status: {}
