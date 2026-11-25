@@ -53,5 +53,5 @@ Selectors, both Deployment `matchLabels` and Service `selector`, use only `app.k
 - Golden-file diffs show exactly which object changed, by file name.
 - Phase 2 stowage plans can add labels freely, but must not touch selectors. A test should enforce this when policy lands.
 - Renaming a Compose service renames its objects. GitOps tools will delete and recreate them, which is the expected behaviour but worth documenting for users.
-- The `instance` label comes from the Compose project name. When `name:` is absent, compose-go derives the name from the directory, so the same file converted from a different directory gives different output. We should either require `name:` or document the risk; this is still to decide, before Phase 1 is done.
+- The `instance` label comes from the Compose project name, so Stevedore requires a top-level `name:`. Without it, compose-go would derive the name from the directory. Stevedore also ignores `COMPOSE_PROJECT_NAME`, which Docker lets override `name:`, so output never depends on where or in what environment `convert` runs.
 - Changing anything in this ADR after the first release is a breaking change and needs a new ADR and a release note.

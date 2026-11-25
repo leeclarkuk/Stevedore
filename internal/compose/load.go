@@ -52,6 +52,12 @@ func Load(ctx context.Context, path string) (*types.Project, error) {
 	if err := cli.WithNormalization(true)(opts); err != nil {
 		return nil, fmt.Errorf("compose options for %q: %w", path, err)
 	}
+	// Docker lets COMPOSE_PROJECT_NAME override name: from the file. The name
+	// feeds the instance label (ADR 0002), so pin it to the file's value to
+	// keep output independent of the environment.
+	if err := cli.WithName(raw["name"].(string))(opts); err != nil {
+		return nil, fmt.Errorf("project name in %q: %w", path, err)
+	}
 	project, err := opts.LoadProject(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("load compose project %q: %w", path, err)
@@ -68,6 +74,12 @@ func validate(raw map[string]any) error {
 		}
 		errs = append(errs, fmt.Errorf("top-level key %q is not supported yet; remove it (supported: %s)",
 			key, list(supportedTopLevel)))
+	}
+
+	// Without name:, compose-go derives the project name from the directory,
+	// so the same file would render differently depending on where it lives.
+	if name, _ := raw["name"].(string); name == "" {
+		errs = append(errs, errors.New("no top-level name; add name: <project> so output does not depend on the directory or environment"))
 	}
 
 	services, _ := raw["services"].(map[string]any)

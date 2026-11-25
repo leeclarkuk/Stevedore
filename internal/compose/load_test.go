@@ -8,6 +8,18 @@ import (
 	"testing"
 )
 
+// named prefixes a Compose body with name:, which every valid file needs.
+func named(body string) string { return "name: demo\n" + body }
+
+func writeCompose(t *testing.T, content string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "compose.yaml")
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
 func TestLoad(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -16,48 +28,52 @@ func TestLoad(t *testing.T) {
 	}{
 		{
 			name:    "image only",
-			compose: "services:\n  web:\n    image: nginx:1.27\n",
+			compose: named("services:\n  web:\n    image: nginx:1.27\n"),
 		},
 		{
 			name:    "extension fields allowed",
-			compose: "x-stevedore: {}\nservices:\n  web:\n    image: nginx:1.27\n    x-stevedore: {}\n",
+			compose: named("x-stevedore: {}\nservices:\n  web:\n    image: nginx:1.27\n    x-stevedore: {}\n"),
+		},
+		{
+			name:    "missing name",
+			compose: "services:\n  web:\n    image: nginx:1.27\n",
+			wantErr: []string{"no top-level name", "add name: <project>"},
+		},
+		{
+			name:    "empty name",
+			compose: "name: \"\"\nservices:\n  web:\n    image: nginx:1.27\n",
+			wantErr: []string{"no top-level name"},
 		},
 		{
 			name:    "build without image",
-			compose: "services:\n  api:\n    build: .\n",
+			compose: named("services:\n  api:\n    build: .\n"),
 			wantErr: []string{`service "api" has build but no image`, "build and push it in CI"},
 		},
 		{
 			name:    "build with image is still unsupported",
-			compose: "services:\n  api:\n    build: .\n    image: example/api:1\n",
+			compose: named("services:\n  api:\n    build: .\n    image: example/api:1\n"),
 			wantErr: []string{`service "api": key "build" is not supported yet`},
 		},
 		{
 			name:    "missing image",
-			compose: "services:\n  web:\n    command: [\"true\"]\n",
+			compose: named("services:\n  web:\n    command: [\"true\"]\n"),
 			wantErr: []string{`service "web" has no image`, `key "command" is not supported yet`},
 		},
 		{
 			name:    "unsupported service key",
-			compose: "services:\n  web:\n    image: nginx:1.27\n    ports: [\"8080:80\"]\n",
+			compose: named("services:\n  web:\n    image: nginx:1.27\n    ports: [\"8080:80\"]\n"),
 			wantErr: []string{`service "web": key "ports" is not supported yet`, "supported: image"},
 		},
 		{
 			name:    "unsupported top-level key",
-			compose: "services:\n  web:\n    image: nginx:1.27\nvolumes:\n  data: {}\n",
+			compose: named("services:\n  web:\n    image: nginx:1.27\nvolumes:\n  data: {}\n"),
 			wantErr: []string{`top-level key "volumes" is not supported yet`},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dir := t.TempDir()
-			path := filepath.Join(dir, "compose.yaml")
-			if err := os.WriteFile(path, []byte(tt.compose), 0o600); err != nil {
-				t.Fatal(err)
-			}
-
-			_, err := Load(context.Background(), path)
+			_, err := Load(context.Background(), writeCompose(t, tt.compose))
 			if len(tt.wantErr) == 0 {
 				if err != nil {
 					t.Fatalf("Load() unexpected error: %v", err)
@@ -73,5 +89,19 @@ func TestLoad(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// Docker Compose lets COMPOSE_PROJECT_NAME override name:, which would make
+// output depend on the environment. Stevedore must use the file's name.
+func TestLoadIgnoresProjectNameEnv(t *testing.T) {
+	t.Setenv("COMPOSE_PROJECT_NAME", "fromenv")
+
+	project, err := Load(context.Background(), writeCompose(t, named("services:\n  web:\n    image: nginx:1.27\n")))
+	if err != nil {
+		t.Fatalf("Load() unexpected error: %v", err)
+	}
+	if project.Name != "demo" {
+		t.Errorf("project name = %q, want %q from the file", project.Name, "demo")
 	}
 }
